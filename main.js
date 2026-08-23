@@ -5,7 +5,13 @@ const Icon = ({ name, size = 18, className = "", style = {} }) => {
   useEffect(() => {
     if (window.lucide) window.lucide.createIcons();
   }, [name]);
-  return <i data-lucide={name} className={className} style={{ width: size, height: size, display: 'inline-block', ...style }} />;
+  return (
+    <i
+      data-lucide={name}
+      className={className}
+      style={{ width: size, height: size, display: "inline-block", ...style }}
+    />
+  );
 };
 
 const GENRES = [
@@ -19,18 +25,6 @@ const GENRES = [
 
 const genreOf = (id) => GENRES.find((g) => g.id === id) || GENRES[0];
 
-const SEED_BOOKS = [
-  { id: "s1", title: "파우스트", author: "요한 볼프강 폰 괴테", genreId: "philosophical", intro: "영혼을 건 계약과 구원을 둘러싼 이야기.", rating: 5, date: "2026.07.02", postedBy: "관리자" },
-  { id: "s2", title: "돈키호테", author: "미겔 데 세르반테스", genreId: "adventure", intro: "이상을 좇아 현실과 부딪히는 늙은 기사의 여정.", rating: 5, date: "2026.07.06", postedBy: "관리자" },
-  { id: "s3", title: "이방인", author: "알베르 카뮈", genreId: "existential", intro: "무심함으로 세상을 마주하는 뫼르소의 시선.", rating: 5, date: "2026.07.10", postedBy: "관리자" },
-  { id: "s4", title: "폭풍의 언덕", author: "에밀리 브론테", genreId: "tragedy", intro: "황야를 배경으로 한 집착과 파멸의 사랑.", rating: 4, date: "2026.07.14", postedBy: "관리자" },
-  { id: "s5", title: "모비 딕", author: "허먼 멜빌", genreId: "adventure", intro: "거대한 흰 고래를 쫓는 집념의 항해.", rating: 4, date: "2026.07.18", postedBy: "관리자" },
-  { id: "s6", title: "죄와 벌", author: "표도르 도스토옙스키", genreId: "tragedy", intro: "죄를 저지른 자의 내면을 파고드는 심리극.", rating: 5, date: "2026.07.22", postedBy: "관리자" },
-  { id: "s7", title: "변신", author: "프란츠 카프카", genreId: "existential", intro: "어느 날 벌레가 된 그레고르의 하루하루.", rating: 4, date: "2026.07.25", postedBy: "관리자" },
-  { id: "s8", title: "데미안", author: "헤르만 헤세", genreId: "growth", intro: "알을 깨고 나오는 성장의 기록.", rating: 4, date: "2026.07.29", postedBy: "관리자" },
-  { id: "s9", title: "오디세이아", author: "호메로스", genreId: "epic", intro: "고향으로 돌아가기 위한 오디세우스의 긴 여정.", rating: 5, date: "2026.08.01", postedBy: "관리자" },
-];
-
 const INK = "#221C4D";
 const INK_MUTED = "#6B639A";
 const BORDER = "#E4DFFB";
@@ -38,23 +32,33 @@ const CARD_BG = "#FFFFFF";
 const PAGE_BG_TOP = "#EFEAFF";
 const PAGE_BG_BOTTOM = "#FAF9FF";
 
-const USERS_KEY = "limbus_books_users_db";
-const BOOKS_KEY = "limbus_books_board_db";
-const ADMIN_USERNAME = "limbuscompany";
-const ADMIN_PASSWORD = "letslarpeverysecond";
+// 이 이메일로 로그인한 계정만 다른 사람 글도 삭제할 수 있어요.
+// Neon Auth로 회원가입을 마친 뒤, 관리자로 쓸 계정의 이메일로 바꿔주세요.
+const ADMIN_EMAIL = "admin@limbuscompany.app";
 
-// LocalStorage 기반 데이터 로드/저장 함수
-async function loadUsers() {
-  try { return JSON.parse(localStorage.getItem(USERS_KEY)) || {}; } catch { return {}; }
+// ---------- /api/books 호출 헬퍼 ----------
+async function fetchBooks() {
+  const res = await fetch("/api/books");
+  if (!res.ok) throw new Error("책 목록을 불러오지 못했습니다.");
+  return res.json();
 }
-async function saveUsers(users) {
-  try { localStorage.setItem(USERS_KEY, JSON.stringify(users)); return true; } catch { return false; }
+async function createBook(payload) {
+  const res = await fetch("/api/books", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("게시 중 오류가 발생했습니다.");
+  return res.json();
 }
-async function loadBooks() {
-  try { return JSON.parse(localStorage.getItem(BOOKS_KEY)); } catch { return null; }
-}
-async function saveBooks(books) {
-  try { localStorage.setItem(BOOKS_KEY, JSON.stringify(books)); return true; } catch { return false; }
+async function deleteBook(id, requesterEmail, isAdmin) {
+  const res = await fetch("/api/books", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, requesterEmail, isAdmin }),
+  });
+  if (!res.ok) throw new Error("삭제 중 오류가 발생했습니다.");
+  return res.json();
 }
 
 function StarPicker({ value, onChange, size = 18 }) {
@@ -62,8 +66,19 @@ function StarPicker({ value, onChange, size = 18 }) {
   return (
     <div className="flex items-center gap-1">
       {[1, 2, 3, 4, 5].map((n) => (
-        <button key={n} type="button" onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(0)} onClick={() => onChange(n)} className="focus:outline-none">
-          <Icon name="star" size={size} style={{ color: (hover || value) >= n ? "#7C5CFC" : "#D9D3F7" }} />
+        <button
+          key={n}
+          type="button"
+          onMouseEnter={() => setHover(n)}
+          onMouseLeave={() => setHover(0)}
+          onClick={() => onChange(n)}
+          className="focus:outline-none"
+        >
+          <Icon
+            name="star"
+            size={size}
+            style={{ color: (hover || value) >= n ? "#7C5CFC" : "#D9D3F7" }}
+          />
         </button>
       ))}
     </div>
@@ -74,7 +89,12 @@ function StarDisplay({ rating, size = 14 }) {
   return (
     <div className="flex items-center gap-0.5">
       {[1, 2, 3, 4, 5].map((n) => (
-        <Icon key={n} name="star" size={size} style={{ color: rating >= n ? "#7C5CFC" : "#E4DFFB" }} />
+        <Icon
+          key={n}
+          name="star"
+          size={size}
+          style={{ color: rating >= n ? "#7C5CFC" : "#E4DFFB" }}
+        />
       ))}
     </div>
   );
@@ -82,13 +102,26 @@ function StarDisplay({ rating, size = 14 }) {
 
 function Ribbon({ color }) {
   return (
-    <div style={{ position: "absolute", top: -10, left: 22, width: 30, height: 40, background: color, clipPath: "polygon(0 0, 100% 0, 100% 100%, 50% 76%, 0 100%)", boxShadow: "0 3px 6px rgba(34, 28, 77, 0.18)" }} />
+    <div
+      style={{
+        position: "absolute",
+        top: -10,
+        left: 22,
+        width: 30,
+        height: 40,
+        background: color,
+        clipPath: "polygon(0 0, 100% 0, 100% 100%, 50% 76%, 0 100%)",
+        boxShadow: "0 3px 6px rgba(34, 28, 77, 0.18)",
+      }}
+    />
   );
 }
 
+// ---------- 로그인 / 회원가입 (Neon Auth) ----------
 function AuthScreen({ onAuthed }) {
   const [mode, setMode] = useState("login");
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
@@ -96,62 +129,158 @@ function AuthScreen({ onAuthed }) {
 
   const handleSubmit = async () => {
     setError("");
-    const u = username.trim();
-    if (u.length < 3) return setError("아이디는 3자 이상 입력해주세요.");
-    if (password.length < 4) return setError("비밀번호는 4자 이상 입력해주세요.");
-    if (mode === "signup" && password !== confirm) return setError("비밀번호가 일치하지 않습니다.");
-    if (mode === "signup" && u === ADMIN_USERNAME) return setError("이 아이디는 사용할 수 없습니다.");
+    const e = email.trim();
 
-    if (mode === "login" && u === ADMIN_USERNAME) {
-      if (password !== ADMIN_PASSWORD) return setError("아이디 또는 비밀번호가 올바르지 않습니다.");
-      return onAuthed(u, true);
+    if (!/^\S+@\S+\.\S+$/.test(e)) return setError("올바른 이메일 형식으로 입력해주세요.");
+    if (password.length < 8) return setError("비밀번호는 8자 이상 입력해주세요.");
+    if (mode === "signup" && password !== confirm) return setError("비밀번호가 일치하지 않습니다.");
+    if (mode === "signup" && !name.trim()) return setError("게시판에 표시할 이름을 입력해주세요.");
+
+    if (!window.neonAuth) {
+      return setError("인증 서비스를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
     }
 
     setLoading(true);
-    const users = await loadUsers();
+    try {
+      let result;
+      if (mode === "signup") {
+        result = await window.neonAuth.signUp.email({ email: e, password, name: name.trim() });
+      } else {
+        result = await window.neonAuth.signIn.email({ email: e, password });
+      }
 
-    if (mode === "signup") {
-      if (users[u]) { setLoading(false); return setError("이미 사용 중인 아이디입니다."); }
-      users[u] = { password, createdAt: new Date().toISOString() };
-      await saveUsers(users);
+      // Neon Auth(Better Auth) 클라이언트는 보통 { data, error } 형태로 응답을 돌려줘요.
+      if (result && result.error) {
+        setError(result.error.message || "요청 처리 중 문제가 발생했습니다.");
+        setLoading(false);
+        return;
+      }
+
+      const displayName =
+        (result && result.data && result.data.user && result.data.user.name) ||
+        name.trim() ||
+        e.split("@")[0];
+
       setLoading(false);
-      return onAuthed(u, false);
+      onAuthed({
+        email: e,
+        name: displayName,
+        isAdmin: e.toLowerCase() === ADMIN_EMAIL.toLowerCase(),
+      });
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+      setError("요청 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.");
     }
-
-    const record = users[u];
-    setLoading(false);
-    if (!record || record.password !== password) return setError("아이디 또는 비밀번호가 올바르지 않습니다.");
-    onAuthed(u, false);
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center px-6" style={{ background: `linear-gradient(180deg, ${PAGE_BG_TOP} 0%, ${PAGE_BG_BOTTOM} 60%)` }}>
+    <div
+      className="min-h-screen w-full flex items-center justify-center px-6"
+      style={{ background: `linear-gradient(180deg, ${PAGE_BG_TOP} 0%, ${PAGE_BG_BOTTOM} 60%)` }}
+    >
       <div className="w-full max-w-sm">
         <div className="text-center mb-6">
-          <div className="mx-auto mb-4 flex items-center justify-center rounded-full" style={{ width: 52, height: 52, background: "linear-gradient(135deg, #3F5AF0, #6C4EF0 55%, #9C4CE0)" }}>
+          <div
+            className="mx-auto mb-4 flex items-center justify-center rounded-full"
+            style={{
+              width: 52,
+              height: 52,
+              background: "linear-gradient(135deg, #3F5AF0, #6C4EF0 55%, #9C4CE0)",
+            }}
+          >
             <Icon name="moon" size={22} style={{ color: "#fff" }} />
           </div>
-          <h1 className="text-2xl font-bold" style={{ color: INK }}>림버스 스토리를 위한 고전 소설들</h1>
+          <h1 className="text-2xl font-bold" style={{ color: INK }}>
+            림버스 스토리를 위한 고전 소설들
+          </h1>
         </div>
 
         <div className="rounded-2xl p-6" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
           <div className="flex rounded-full p-1 mb-5" style={{ background: "#F4F2FF" }}>
             {["login", "signup"].map((m) => (
-              <button key={m} onClick={() => { setMode(m); setError(""); }} className="flex-1 rounded-full py-2 text-sm font-semibold" style={{ background: mode === m ? "linear-gradient(135deg, #6C4EF0, #4C6FF5)" : "transparent", color: mode === m ? "#FFFFFF" : INK_MUTED }}>
+              <button
+                key={m}
+                onClick={() => {
+                  setMode(m);
+                  setError("");
+                }}
+                className="flex-1 rounded-full py-2 text-sm font-semibold"
+                style={{
+                  background: mode === m ? "linear-gradient(135deg, #6C4EF0, #4C6FF5)" : "transparent",
+                  color: mode === m ? "#FFFFFF" : INK_MUTED,
+                }}
+              >
                 {m === "login" ? "로그인" : "회원가입"}
               </button>
             ))}
           </div>
 
           <div className="space-y-3">
-            <input className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="아이디" value={username} onChange={(e) => setUsername(e.target.value)} />
-            <input type="password" className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="비밀번호" value={password} onChange={(e) => setPassword(e.target.value)} />
-            {mode === "signup" && <input type="password" className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="비밀번호 확인" value={confirm} onChange={(e) => setConfirm(e.target.value)} />}
+            <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ border: `1px solid ${BORDER}` }}>
+              <Icon name="mail" size={15} style={{ color: INK_MUTED }} />
+              <input
+                className="flex-1 text-sm bg-transparent focus:outline-none"
+                style={{ color: INK }}
+                placeholder="이메일"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+
+            {mode === "signup" && (
+              <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ border: `1px solid ${BORDER}` }}>
+                <Icon name="user" size={15} style={{ color: INK_MUTED }} />
+                <input
+                  className="flex-1 text-sm bg-transparent focus:outline-none"
+                  style={{ color: INK }}
+                  placeholder="게시판에 표시할 이름"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ border: `1px solid ${BORDER}` }}>
+              <Icon name="lock" size={15} style={{ color: INK_MUTED }} />
+              <input
+                type="password"
+                className="flex-1 text-sm bg-transparent focus:outline-none"
+                style={{ color: INK }}
+                placeholder="비밀번호 (8자 이상)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+
+            {mode === "signup" && (
+              <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ border: `1px solid ${BORDER}` }}>
+                <Icon name="lock" size={15} style={{ color: INK_MUTED }} />
+                <input
+                  type="password"
+                  className="flex-1 text-sm bg-transparent focus:outline-none"
+                  style={{ color: INK }}
+                  placeholder="비밀번호 확인"
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                />
+              </div>
+            )}
           </div>
 
-          {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+          {error && (
+            <p className="text-xs mt-3" style={{ color: "#D6336C" }}>
+              {error}
+            </p>
+          )}
 
-          <button onClick={handleSubmit} disabled={loading} className="w-full mt-5 rounded-full py-2.5 text-sm font-semibold text-white" style={{ background: "linear-gradient(135deg, #6C4EF0, #4C6FF5)" }}>
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="w-full mt-5 rounded-full py-2.5 text-sm font-semibold text-white flex items-center justify-center gap-2"
+            style={{ background: "linear-gradient(135deg, #6C4EF0, #4C6FF5)", opacity: loading ? 0.7 : 1 }}
+          >
+            {loading && <Icon name="loader-2" size={15} className="animate-spin" />}
             {mode === "login" ? "로그인" : "가입하고 시작하기"}
           </button>
         </div>
@@ -160,47 +289,327 @@ function AuthScreen({ onAuthed }) {
   );
 }
 
-function Board({ currentUser, isAdmin, onLogout }) {
+// ---------- 게시판 ----------
+function Board({ currentUser, onLogout }) {
   const [books, setBooks] = useState([]);
+  const [booksLoading, setBooksLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [query, setQuery] = useState("");
+  const [activeGenre, setActiveGenre] = useState("all");
+  const [showForm, setShowForm] = useState(false);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({ title: "", author: "", genreId: GENRES[0].id, intro: "", rating: 0 });
 
   useEffect(() => {
     (async () => {
-      let data = await loadBooks();
-      if (!data) { data = SEED_BOOKS; await saveBooks(data); }
-      setBooks(data);
+      try {
+        setBooksLoading(true);
+        const data = await fetchBooks();
+        setBooks(data);
+      } catch (err) {
+        console.error(err);
+        setError("책 목록을 불러오지 못했습니다.");
+      } finally {
+        setBooksLoading(false);
+      }
     })();
   }, []);
 
-  const filtered = books.filter((b) => !query || b.title.includes(query) || b.author.includes(query));
+  const filtered = books.filter((b) => {
+    const q = query.trim().toLowerCase();
+    const matchesGenre = activeGenre === "all" || b.genre_id === activeGenre;
+    const matchesQuery = !q || b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q);
+    return matchesGenre && matchesQuery;
+  });
+
+  const resetForm = () => setForm({ title: "", author: "", genreId: GENRES[0].id, intro: "", rating: 0 });
+
+  const handleSubmit = async () => {
+    if (!form.title.trim() || !form.author.trim() || !form.intro.trim()) {
+      setError("책 제목, 저자, 한 줄 소개는 꼭 채워주세요.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const newBook = await createBook({
+        title: form.title.trim(),
+        author: form.author.trim(),
+        genreId: form.genreId,
+        intro: form.intro.trim(),
+        rating: form.rating,
+        postedByEmail: currentUser.email,
+        postedByName: currentUser.name,
+      });
+      setBooks((prev) => [newBook, ...prev]);
+      resetForm();
+      setError("");
+      setShowForm(false);
+    } catch (err) {
+      console.error(err);
+      setError("저장 중 문제가 발생했습니다. 다시 시도해주세요.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    setSaving(true);
+    try {
+      await deleteBook(id, currentUser.email, currentUser.isAdmin);
+      setBooks((prev) => prev.filter((b) => b.id !== id));
+    } catch (err) {
+      console.error(err);
+      setError("삭제 중 문제가 발생했습니다.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen w-full p-6" style={{ background: PAGE_BG_BOTTOM }}>
-      <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold" style={{ color: INK }}>림버스 스토리를 위한 고전 소설들</h1>
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold">{currentUser} {isAdmin && "(관리자)"}</span>
-            <button onClick={onLogout} className="text-xs bg-gray-200 px-3 py-1.5 rounded-full">로그아웃</button>
+    <div
+      className="min-h-screen w-full"
+      style={{ background: `linear-gradient(180deg, ${PAGE_BG_TOP} 0%, ${PAGE_BG_BOTTOM} 55%)`, color: INK }}
+    >
+      {/* Hero */}
+      <div
+        className="relative overflow-hidden"
+        style={{ background: "linear-gradient(135deg, #3F5AF0 0%, #6C4EF0 55%, #9C4CE0 100%)" }}
+      >
+        <div className="relative max-w-5xl mx-auto px-6 sm:px-10 py-10 sm:py-14">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-3" style={{ color: "rgba(255,255,255,0.85)" }}>
+                <Icon name="moon" size={18} style={{ color: "rgba(255,255,255,0.85)" }} />
+                <span className="text-sm tracking-wide">고전이 남긴 이름들</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: "#FFFFFF" }}>
+                림버스 스토리를 위한 고전 소설들
+              </h1>
+              <p className="mt-3 text-sm max-w-md" style={{ color: "rgba(255,255,255,0.85)" }}>
+                죄인들의 이름이 된 원작들을 소개하고 나눠보세요.
+              </p>
+            </div>
+            <div className="text-right shrink-0">
+              <div className="flex items-center gap-2 justify-end text-sm" style={{ color: "#FFFFFF" }}>
+                <Icon name="user" size={15} style={{ color: "#FFFFFF" }} />
+                {currentUser.name}
+                {currentUser.isAdmin && (
+                  <span
+                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                    style={{ background: "rgba(255,255,255,0.25)" }}
+                  >
+                    <Icon name="shield" size={11} style={{ color: "#FFFFFF" }} />
+                    관리자
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={onLogout}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium"
+                style={{ background: "rgba(255,255,255,0.18)", color: "#FFFFFF" }}
+              >
+                <Icon name="log-out" size={13} style={{ color: "#FFFFFF" }} />
+                로그아웃
+              </button>
+            </div>
           </div>
+
+          <button
+            onClick={() => {
+              setShowForm((v) => !v);
+              setError("");
+            }}
+            className="mt-6 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold"
+            style={{ background: "#FFFFFF", color: "#4C3FD6", boxShadow: "0 8px 20px rgba(20, 12, 70, 0.25)" }}
+          >
+            <Icon name={showForm ? "x" : "plus"} size={16} style={{ color: "#4C3FD6" }} />
+            {showForm ? "작성 취소" : "새 책 소개 남기기"}
+          </button>
         </div>
+      </div>
 
-        <input className="w-full p-3 rounded-xl border mb-6" placeholder="제목 또는 저자로 검색" value={query} onChange={(e) => setQuery(e.target.value)} />
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((b) => (
-            <div key={b.id} className="p-5 rounded-2xl border bg-white relative">
-              <Ribbon color={genreOf(b.genreId).color} />
-              <h3 className="font-bold text-lg mt-2" style={{ color: INK }}>{b.title}</h3>
-              <p className="text-xs text-gray-500">{b.author}</p>
-              <p className="text-sm mt-3 text-gray-700">{b.intro}</p>
-              <div className="mt-4 pt-2 border-t flex justify-between items-center text-xs text-gray-400">
-                <StarDisplay rating={b.rating} />
-                <span>{b.postedBy}</span>
+      <div className="max-w-5xl mx-auto px-6 sm:px-10 -mt-6 relative pb-16">
+        {showForm && (
+          <div
+            className="rounded-2xl p-5 sm:p-6 mb-8"
+            style={{ background: CARD_BG, border: `1px solid ${BORDER}`, boxShadow: "0 20px 40px rgba(76, 60, 190, 0.15)" }}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: INK_MUTED }}>책 제목</label>
+                <input
+                  className="w-full rounded-lg px-3 py-2 text-sm"
+                  style={{ border: `1px solid ${BORDER}`, color: INK }}
+                  placeholder="예: 카라마조프가의 형제들"
+                  value={form.title}
+                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: INK_MUTED }}>저자</label>
+                <input
+                  className="w-full rounded-lg px-3 py-2 text-sm"
+                  style={{ border: `1px solid ${BORDER}`, color: INK }}
+                  placeholder="예: 표도르 도스토옙스키"
+                  value={form.author}
+                  onChange={(e) => setForm((f) => ({ ...f, author: e.target.value }))}
+                />
               </div>
             </div>
-          ))}
+
+            <div className="mt-4">
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: INK_MUTED }}>분류</label>
+              <div className="flex flex-wrap gap-2">
+                {GENRES.map((g) => {
+                  const active = form.genreId === g.id;
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, genreId: g.id }))}
+                      className="rounded-full px-3 py-1.5 text-xs font-medium"
+                      style={{
+                        background: active ? g.color : "#F4F2FF",
+                        color: active ? "#FFFFFF" : INK_MUTED,
+                        border: `1px solid ${active ? g.color : BORDER}`,
+                      }}
+                    >
+                      {g.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: INK_MUTED }}>한 줄 소개</label>
+              <textarea
+                className="w-full rounded-lg px-3 py-2 text-sm resize-none"
+                style={{ border: `1px solid ${BORDER}`, color: INK }}
+                rows={3}
+                maxLength={120}
+                placeholder="이 책을 왜 추천하고 싶은지 짧게 적어주세요."
+                value={form.intro}
+                onChange={(e) => setForm((f) => ({ ...f, intro: e.target.value }))}
+              />
+            </div>
+
+            <div className="mt-4 flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <span className="block text-xs font-semibold mb-1.5" style={{ color: INK_MUTED }}>별점</span>
+                <StarPicker value={form.rating} onChange={(n) => setForm((f) => ({ ...f, rating: n }))} />
+              </div>
+              <div className="flex items-center gap-2">
+                {error && <span className="text-xs" style={{ color: "#D6336C" }}>{error}</span>}
+                <button
+                  onClick={handleSubmit}
+                  disabled={saving}
+                  className="rounded-full px-5 py-2 text-sm font-semibold flex items-center gap-2"
+                  style={{ background: "linear-gradient(135deg, #6C4EF0, #4C6FF5)", color: "#FFFFFF", opacity: saving ? 0.7 : 1 }}
+                >
+                  {saving && <Icon name="loader-2" size={14} className="animate-spin" style={{ color: "#FFFFFF" }} />}
+                  게시하기
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 rounded-full px-4 py-2 mb-6" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
+          <Icon name="search" size={16} style={{ color: INK_MUTED }} />
+          <input
+            className="flex-1 text-sm bg-transparent focus:outline-none"
+            style={{ color: INK }}
+            placeholder="제목 또는 저자로 검색"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
         </div>
+
+        <div className="flex flex-wrap gap-2 mb-8">
+          <button
+            onClick={() => setActiveGenre("all")}
+            className="rounded-full px-3 py-1.5 text-xs font-medium"
+            style={{
+              background: activeGenre === "all" ? INK : "#F4F2FF",
+              color: activeGenre === "all" ? "#FFFFFF" : INK_MUTED,
+              border: `1px solid ${activeGenre === "all" ? INK : BORDER}`,
+            }}
+          >
+            전체
+          </button>
+          {GENRES.map((g) => {
+            const active = activeGenre === g.id;
+            return (
+              <button
+                key={g.id}
+                onClick={() => setActiveGenre(g.id)}
+                className="rounded-full px-3 py-1.5 text-xs font-medium"
+                style={{
+                  background: active ? g.color : "#F4F2FF",
+                  color: active ? "#FFFFFF" : INK_MUTED,
+                  border: `1px solid ${active ? g.color : BORDER}`,
+                }}
+              >
+                {g.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {booksLoading ? (
+          <div className="flex items-center justify-center gap-2 py-16" style={{ color: INK_MUTED }}>
+            <Icon name="loader-2" size={18} className="animate-spin" style={{ color: INK_MUTED }} />
+            <span className="text-sm">책장을 불러오는 중...</span>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="rounded-2xl p-10 text-center" style={{ background: CARD_BG, border: `1px dashed ${BORDER}` }}>
+            <Icon name="book-open" size={28} style={{ color: "#B9AEF0", margin: "0 auto 12px" }} />
+            <p className="text-sm" style={{ color: INK_MUTED }}>아직 이 책장엔 책이 없어요. 첫 소개를 남겨보세요.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filtered.map((b) => {
+              const genre = genreOf(b.genre_id);
+              const canDelete = b.posted_by_email === currentUser.email || currentUser.isAdmin;
+              return (
+                <div
+                  key={b.id}
+                  className="relative rounded-2xl pt-7 pb-5 px-5 flex flex-col"
+                  style={{ background: CARD_BG, border: `1px solid ${BORDER}`, boxShadow: "0 8px 24px rgba(76, 60, 190, 0.08)" }}
+                >
+                  <Ribbon color={genre.color} />
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="text-lg font-bold leading-snug" style={{ color: INK }}>{b.title}</h3>
+                    {canDelete && (
+                      <button
+                        onClick={() => handleDelete(b.id)}
+                        className="shrink-0 rounded-full p-1.5"
+                        style={{ color: currentUser.isAdmin && b.posted_by_email !== currentUser.email ? "#D6336C" : "#B9AEF0" }}
+                      >
+                        <Icon name="trash-2" size={15} style={{ color: "inherit" }} />
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-xs mt-1" style={{ color: INK_MUTED }}>{b.author}</p>
+                  <span
+                    className="inline-block mt-3 w-fit rounded-full px-2.5 py-1 text-[11px] font-medium"
+                    style={{ background: `${genre.color}1A`, color: genre.color }}
+                  >
+                    {genre.label}
+                  </span>
+                  <p className="text-sm mt-3 leading-relaxed" style={{ color: "#433D74" }}>{b.intro}</p>
+                  <div className="mt-4 pt-3 flex items-center justify-between" style={{ borderTop: `1px solid ${BORDER}` }}>
+                    <StarDisplay rating={b.rating} />
+                    <span className="text-[11px]" style={{ color: INK_MUTED }}>
+                      {b.posted_by_name || b.posted_by_email}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -208,14 +617,12 @@ function Board({ currentUser, isAdmin, onLogout }) {
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
 
   if (!currentUser) {
-    return <AuthScreen onAuthed={(u, admin) => { setCurrentUser(u); setIsAdmin(!!admin); }} />;
+    return <AuthScreen onAuthed={(user) => setCurrentUser(user)} />;
   }
-  return <Board currentUser={currentUser} isAdmin={isAdmin} onLogout={() => setCurrentUser(null)} />;
+  return <Board currentUser={currentUser} onLogout={() => setCurrentUser(null)} />;
 }
 
-// React 18 렌더링
-const root = ReactDOM.createRoot(document.getElementById('root'));
+const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<App />);

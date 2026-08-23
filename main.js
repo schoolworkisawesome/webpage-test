@@ -336,7 +336,7 @@ function AuthScreen({ onAuthed }) {
             림버스 스토리를 위한 고전 소설들
           </h1>
           <p className="text-xs mt-2 leading-relaxed" style={{ color: INK_MUTED }}>
-            림버스 컴퍼니의 죄인들은 고전 문학 속 인물의 이름을 물려받았습니다.
+            림버스 컴퍼니의 수감자들은 고전 문학 속 인물의 이름을 물려받았습니다.
             <br />
             그 원작들을 함께 나누는 책장입니다.
           </p>
@@ -883,28 +883,31 @@ function Board({ currentUser, isAdmin, onLogout }) {
   );
 }
 
-export default function App() {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+// export default function App() {
+//   const [currentUser, setCurrentUser] = useState(null);
+//   const [isAdmin, setIsAdmin] = useState(false);
 
-  if (!currentUser) {
-    return (
-      <AuthScreen
-        onAuthed={(u, admin) => {
-          setCurrentUser(u);
-          setIsAdmin(!!admin);
-        }}
-      />
-    );
-  }
-  return (
-    <Board
-      currentUser={currentUser}
-      isAdmin={isAdmin}
-      onLogout={() => {
-        setCurrentUser(null);
-        setIsAdmin(false);
-      }}
-    />
-  );
-}
+//   if (!currentUser) {
+//     return (
+//       <AuthScreen
+//         onAuthed={(u, admin) => {
+//           setCurrentUser(u);
+//           setIsAdmin(!!admin);
+//         }}
+//       />
+//     );
+//   }
+//   return (
+//     <Board
+//       currentUser={currentUser}
+//       isAdmin={isAdmin}
+//       onLogout={() => {
+//         setCurrentUser(null);
+//         setIsAdmin(false);
+//       }}
+//     />
+//   );
+// }
+// 파일 최하단에 추가 (export default App; 구문 대신 사용)
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);

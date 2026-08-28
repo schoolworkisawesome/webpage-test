@@ -48,6 +48,12 @@ const ICON_PATHS = {
       <polyline points="22 6 12 13 2 6" />
     </>
   ),
+  edit: (
+    <>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+    </>
+  ),
 };
 
 // 순수 React SVG 아이콘. window.lucide의 DOM 직접 조작 방식은
@@ -104,6 +110,15 @@ async function createBook(payload) {
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error("게시 중 오류가 발생했습니다.");
+  return res.json();
+}
+async function updateBook(payload) {
+  const res = await fetch("/api/books", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("수정 중 오류가 발생했습니다.");
   return res.json();
 }
 async function deleteBook(id, requesterEmail, isAdmin) {
@@ -352,6 +367,7 @@ function Board({ currentUser, onLogout }) {
   const [query, setQuery] = useState("");
   const [activeGenre, setActiveGenre] = useState("all");
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState("");
   const [form, setForm] = useState({ title: "", author: "", genreId: GENRES[0].id, intro: "", rating: 0 });
 
@@ -377,7 +393,10 @@ function Board({ currentUser, onLogout }) {
     return matchesGenre && matchesQuery;
   });
 
-  const resetForm = () => setForm({ title: "", author: "", genreId: GENRES[0].id, intro: "", rating: 0 });
+  const resetForm = () => {
+    setForm({ title: "", author: "", genreId: GENRES[0].id, intro: "", rating: 0 });
+    setEditingId(null);
+  };
 
   const handleSubmit = async () => {
     if (!form.title.trim() || !form.author.trim() || !form.intro.trim()) {
@@ -386,25 +405,53 @@ function Board({ currentUser, onLogout }) {
     }
     setSaving(true);
     try {
-      const newBook = await createBook({
-        title: form.title.trim(),
-        author: form.author.trim(),
-        genreId: form.genreId,
-        intro: form.intro.trim(),
-        rating: form.rating,
-        postedByEmail: currentUser.email,
-        postedByName: currentUser.name,
-      });
-      setBooks((prev) => [newBook, ...prev]);
+      if (editingId) {
+        const updated = await updateBook({
+          id: editingId,
+          title: form.title.trim(),
+          author: form.author.trim(),
+          genreId: form.genreId,
+          intro: form.intro.trim(),
+          rating: form.rating,
+          requesterEmail: currentUser.email,
+          isAdmin: currentUser.isAdmin,
+        });
+        setBooks((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+      } else {
+        const newBook = await createBook({
+          title: form.title.trim(),
+          author: form.author.trim(),
+          genreId: form.genreId,
+          intro: form.intro.trim(),
+          rating: form.rating,
+          postedByEmail: currentUser.email,
+          postedByName: currentUser.name,
+        });
+        setBooks((prev) => [newBook, ...prev]);
+      }
       resetForm();
       setError("");
       setShowForm(false);
     } catch (err) {
       console.error(err);
-      setError("저장 중 문제가 발생했습니다. 다시 시도해주세요.");
+      setError(editingId ? "수정 중 문제가 발생했습니다. 다시 시도해주세요." : "저장 중 문제가 발생했습니다. 다시 시도해주세요.");
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleEdit = (book) => {
+    setForm({
+      title: book.title,
+      author: book.author,
+      genreId: book.genre_id,
+      intro: book.intro,
+      rating: book.rating,
+    });
+    setEditingId(book.id);
+    setError("");
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDelete = async (id) => {
@@ -435,13 +482,13 @@ function Board({ currentUser, onLogout }) {
             <div>
               <div className="flex items-center gap-2 mb-3" style={{ color: "rgba(255,255,255,0.85)" }}>
                 <Icon name="moon" size={18} style={{ color: "rgba(255,255,255,0.85)" }} />
-                <span className="text-sm tracking-wide">고전이 남긴 이름들</span>
+                <span className="text-sm tracking-wide">림버스컴퍼니 유저를 위한 안내서</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: "#FFFFFF" }}>
-                림버스 스토리를 위한 고전 소설들
+                림버스 스토리를 더 즐기기 위한 고전 소설들
               </h1>
               <p className="mt-3 text-sm max-w-md" style={{ color: "rgba(255,255,255,0.85)" }}>
-                죄인들의 이름이 된 원작들을 소개하고 나눠보세요.
+                수감자들의 이름이 된 원작들을 소개하고 나눠보세요.
               </p>
             </div>
             <div className="text-right shrink-0">
@@ -471,7 +518,13 @@ function Board({ currentUser, onLogout }) {
 
           <button
             onClick={() => {
-              setShowForm((v) => !v);
+              if (showForm) {
+                resetForm();
+                setShowForm(false);
+              } else {
+                resetForm();
+                setShowForm(true);
+              }
               setError("");
             }}
             className="mt-6 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold"
@@ -489,6 +542,9 @@ function Board({ currentUser, onLogout }) {
             className="rounded-2xl p-5 sm:p-6 mb-8"
             style={{ background: CARD_BG, border: `1px solid ${BORDER}`, boxShadow: "0 20px 40px rgba(76, 60, 190, 0.15)" }}
           >
+            <p className="text-sm font-semibold mb-4" style={{ color: INK }}>
+              {editingId ? "책 소개 수정하기" : "새 책 소개 작성"}
+            </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: INK_MUTED }}>책 제목</label>
@@ -563,7 +619,7 @@ function Board({ currentUser, onLogout }) {
                   style={{ background: "linear-gradient(135deg, #6C4EF0, #4C6FF5)", color: "#FFFFFF", opacity: saving ? 0.7 : 1 }}
                 >
                   {saving && <Icon name="loader-2" size={14} className="animate-spin" style={{ color: "#FFFFFF" }} />}
-                  게시하기
+                  {editingId ? "수정 완료" : "게시하기"}
                 </button>
               </div>
             </div>
@@ -626,7 +682,7 @@ function Board({ currentUser, onLogout }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((b) => {
               const genre = genreOf(b.genre_id);
-              const canDelete = b.posted_by_email === currentUser.email || currentUser.isAdmin;
+              const canManage = b.posted_by_email === currentUser.email || currentUser.isAdmin;
               return (
                 <div
                   key={b.id}
@@ -636,14 +692,23 @@ function Board({ currentUser, onLogout }) {
                   <Ribbon color={genre.color} />
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="text-lg font-bold leading-snug" style={{ color: INK }}>{b.title}</h3>
-                    {canDelete && (
-                      <button
-                        onClick={() => handleDelete(b.id)}
-                        className="shrink-0 rounded-full p-1.5"
-                        style={{ color: currentUser.isAdmin && b.posted_by_email !== currentUser.email ? "#D6336C" : "#B9AEF0" }}
-                      >
-                        <Icon name="trash-2" size={15} style={{ color: "inherit" }} />
-                      </button>
+                    {canManage && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => handleEdit(b)}
+                          className="rounded-full p-1.5"
+                          style={{ color: "#8B85C4" }}
+                        >
+                          <Icon name="edit" size={14} style={{ color: "inherit" }} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(b.id)}
+                          className="rounded-full p-1.5"
+                          style={{ color: currentUser.isAdmin && b.posted_by_email !== currentUser.email ? "#D6336C" : "#B9AEF0" }}
+                        >
+                          <Icon name="trash-2" size={15} style={{ color: "inherit" }} />
+                        </button>
+                      </div>
                     )}
                   </div>
                   <p className="text-xs mt-1" style={{ color: INK_MUTED }}>{b.author}</p>

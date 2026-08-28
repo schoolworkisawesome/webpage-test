@@ -262,7 +262,7 @@ function AuthScreen({ onAuthed }) {
             <Icon name="moon" size={22} style={{ color: "#fff" }} />
           </div>
           <h1 className="text-2xl font-bold" style={{ color: INK }}>
-            림버스 스토리를 위한 고전 소설들
+            스토리를 위한 고전 소설들
           </h1>
         </div>
 

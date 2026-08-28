@@ -9,8 +9,6 @@
   <!-- React & ReactDOM -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Babel (JSX 변환기) -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
@@ -20,7 +18,7 @@
   <script>
     // Neon 콘솔 > Auth 탭에서 발급받은 Base URL을 여기에 붙여넣으세요.
     // DATABASE_URL과 달리 이 값은 공개 API 주소라 코드에 그대로 넣어도 안전합니다.
-    window.NEON_AUTH_BASE_URL = "https://ep-nameless-term-aui87104.neonauth.c-10.us-east-1.aws.neon.tech/neondb/auth";
+    window.NEON_AUTH_BASE_URL = "https://YOUR-PROJECT.neon.tech/auth";
   </script>
   <script type="module">
     import { createAuthClient } from "https://esm.sh/@neondatabase/auth";

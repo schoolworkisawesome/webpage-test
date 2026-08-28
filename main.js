@@ -482,13 +482,13 @@ function Board({ currentUser, onLogout }) {
             <div>
               <div className="flex items-center gap-2 mb-3" style={{ color: "rgba(255,255,255,0.85)" }}>
                 <Icon name="moon" size={18} style={{ color: "rgba(255,255,255,0.85)" }} />
-                <span className="text-sm tracking-wide">림버스 컴퍼니 유저를 위한 안내서</span>
+                <span className="text-sm tracking-wide">고전이 남긴 이름들</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: "#FFFFFF" }}>
-                림버스 스토리를 더 즐기기 위한 고전 소설들
+                림버스 스토리를 위한 고전 소설들
               </h1>
               <p className="mt-3 text-sm max-w-md" style={{ color: "rgba(255,255,255,0.85)" }}>
-                수감자들의 이름이 된 원작들을 소개하고 나눠보세요.
+                죄인들의 이름이 된 원작들을 소개하고 나눠보세요.
               </p>
             </div>
             <div className="text-right shrink-0">

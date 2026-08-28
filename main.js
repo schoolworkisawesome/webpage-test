@@ -95,7 +95,7 @@ const PAGE_BG_BOTTOM = "#FAF9FF";
 
 // 이 이메일로 로그인한 계정만 다른 사람 글도 삭제할 수 있어요.
 // Neon Auth로 회원가입을 마친 뒤, 관리자로 쓸 계정의 이메일로 바꿔주세요.
-const ADMIN_EMAIL = "admin@limbuscompany.app";
+const ADMIN_EMAIL = "fortheonlineschool@gmail.com";
 
 // ---------- /api/books 호출 헬퍼 ----------
 async function fetchBooks() {
@@ -482,7 +482,7 @@ function Board({ currentUser, onLogout }) {
             <div>
               <div className="flex items-center gap-2 mb-3" style={{ color: "rgba(255,255,255,0.85)" }}>
                 <Icon name="moon" size={18} style={{ color: "rgba(255,255,255,0.85)" }} />
-                <span className="text-sm tracking-wide">림버스컴퍼니 유저를 위한 안내서</span>
+                <span className="text-sm tracking-wide">림버스 컴퍼니 유저를 위한 안내서</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: "#FFFFFF" }}>
                 림버스 스토리를 더 즐기기 위한 고전 소설들

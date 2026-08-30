@@ -32,6 +32,13 @@ module.exports = async function handler(req, res) {
     const forwardHeaders = { "Content-Type": "application/json" };
     if (req.headers.cookie) forwardHeaders.cookie = req.headers.cookie;
 
+    // Neon Auth(Better Auth)는 요청이 어느 사이트에서 왔는지 Origin 헤더로 확인해요.
+    // 서버 간 통신(fetch)은 브라우저와 달리 Origin을 자동으로 안 붙여주기 때문에,
+    // 원래 브라우저가 우리 사이트로 보낸 Origin 값을 그대로 실어서 전달해줘야 해요.
+    const originHeader = req.headers.origin || `https://${req.headers.host}`;
+    forwardHeaders.origin = originHeader;
+    if (req.headers.referer) forwardHeaders.referer = req.headers.referer;
+
     const upstreamRes = await fetch(targetUrl.toString(), {
       method: req.method,
       headers: forwardHeaders,

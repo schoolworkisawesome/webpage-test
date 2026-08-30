@@ -97,7 +97,29 @@ const PAGE_BG_BOTTOM = "#FAF9FF";
 // Neon Auth로 회원가입을 마친 뒤, 관리자로 쓸 계정의 이메일로 바꿔주세요.
 const ADMIN_EMAIL = "fortheonlineschool@gmail.com";
 
-// ---------- /api/books 호출 헬퍼 ----------
+// ---------- /api/auth 프록시 호출 헬퍼 ----------
+// window.neonAuth(esm.sh 외부 모듈) 대신 우리 사이트 안의 /api/auth/*를 호출합니다.
+// 브라우저 입장에서는 전부 같은 도메인 요청이라, 카카오톡 인앱 브라우저 같은
+// 크로스 사이트 요청 제한 환경에서도 정상 동작합니다.
+async function authRequest(path, payload) {
+  const res = await fetch(`/api/auth/${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+  let data = null;
+  try {
+    data = await res.json();
+  } catch {
+    // 응답 본문이 없거나 JSON이 아닌 경우
+  }
+  if (!res.ok) {
+    const message = (data && (data.message || data.error)) || "요청 처리 중 문제가 발생했습니다.";
+    throw new Error(message);
+  }
+  return data;
+}
 async function fetchBooks() {
   const res = await fetch("/api/books");
   if (!res.ok) throw new Error("책 목록을 불러오지 못했습니다.");
@@ -206,30 +228,14 @@ function AuthScreen({ onAuthed }) {
     if (mode === "signup" && password !== confirm) return setError("비밀번호가 일치하지 않습니다.");
     if (mode === "signup" && !name.trim()) return setError("게시판에 표시할 이름을 입력해주세요.");
 
-    if (!window.neonAuth) {
-      return setError("인증 서비스를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
-    }
-
     setLoading(true);
     try {
-      let result;
-      if (mode === "signup") {
-        result = await window.neonAuth.signUp.email({ email: e, password, name: name.trim() });
-      } else {
-        result = await window.neonAuth.signIn.email({ email: e, password });
-      }
+      const result =
+        mode === "signup"
+          ? await authRequest("sign-up/email", { email: e, password, name: name.trim() })
+          : await authRequest("sign-in/email", { email: e, password });
 
-      // Neon Auth(Better Auth) 클라이언트는 보통 { data, error } 형태로 응답을 돌려줘요.
-      if (result && result.error) {
-        setError(result.error.message || "요청 처리 중 문제가 발생했습니다.");
-        setLoading(false);
-        return;
-      }
-
-      const displayName =
-        (result && result.data && result.data.user && result.data.user.name) ||
-        name.trim() ||
-        e.split("@")[0];
+      const displayName = (result && result.user && result.user.name) || name.trim() || e.split("@")[0];
 
       setLoading(false);
       onAuthed({
@@ -240,7 +246,7 @@ function AuthScreen({ onAuthed }) {
     } catch (err) {
       console.error(err);
       setLoading(false);
-      setError("요청 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.");
+      setError(err.message || "요청 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.");
     }
   };
 
@@ -482,13 +488,13 @@ function Board({ currentUser, onLogout }) {
             <div>
               <div className="flex items-center gap-2 mb-3" style={{ color: "rgba(255,255,255,0.85)" }}>
                 <Icon name="moon" size={18} style={{ color: "rgba(255,255,255,0.85)" }} />
-                <span className="text-sm tracking-wide">고전이 남긴 이름들</span>
+                <span className="text-sm tracking-wide">스토리를 더욱 즐기기 위한</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: "#FFFFFF" }}>
                 스토리를 위한 고전 소설들
               </h1>
               <p className="mt-3 text-sm max-w-md" style={{ color: "rgba(255,255,255,0.85)" }}>
-                원작들을 소개하고 나눠보세요.
+                스토리의 배경이 된 원작들을 소개하고 나눠보세요.
               </p>
             </div>
             <div className="text-right shrink-0">
